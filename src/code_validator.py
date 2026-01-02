@@ -52,6 +52,7 @@ class ASTSecurityVisitor(ast.NodeVisitor):
         self.names: List[str] = []
         self.subscripts: List[str] = []
         self.violations: List[str] = []
+        self.has_lambda: bool = False
     
     def visit_Call(self, node: ast.Call) -> None:
         """Visit function/method calls."""
@@ -86,6 +87,11 @@ class ASTSecurityVisitor(ast.NodeVisitor):
         """Visit subscript operations (e.g., df['column'])."""
         if isinstance(node.slice, ast.Constant):
             self.subscripts.append(str(node.slice.value))
+        self.generic_visit(node)
+    
+    def visit_Lambda(self, node: ast.Lambda) -> None:
+        """Visit lambda expressions."""
+        self.has_lambda = True
         self.generic_visit(node)
     
     def _get_call_name(self, node: ast.Call) -> Optional[str]:
@@ -134,6 +140,14 @@ class CodeValidator:
         blocked = []
         unknown = []
         
+        # Layer 0: Basic validation - empty/whitespace check
+        code_stripped = code.strip()
+        if not code_stripped:
+            raise CodeValidationError(
+                message="Empty code is not allowed",
+                code=ErrorCode.SYNTAX_ERROR
+            )
+        
         # Layer 1: Syntax validation
         try:
             tree = ast.parse(code)
@@ -147,6 +161,18 @@ class CodeValidator:
         # Layer 2: AST analysis
         visitor = ASTSecurityVisitor()
         visitor.visit(tree)
+        
+        # Layer 2.5: Check for lambda expressions
+        if visitor.has_lambda:
+            security_logger.security(
+                "Lambda expression detected",
+                code_preview=code[:50]
+            )
+            raise SecurityViolationError(
+                message="Lambda functions are not allowed",
+                violation_type="blocked_operation",
+                blocked_item="lambda"
+            )
         
         # Layer 3: Check imports (critical - deny all imports)
         if visitor.imports:
@@ -301,16 +327,16 @@ class CodeValidator:
             (r'\blocals\s*\(', "locals() not allowed"),
             (r'\bgetattr\s*\(', "getattr() not allowed"),
             (r'\bsetattr\s*\(', "setattr() not allowed"),
-            (r'lambda\s*:', "Lambda functions not allowed"),
+            (r'\blambda\s+\w+', "Lambda functions not allowed"),
+            (r'\blambda\s*:', "Lambda functions not allowed"),
         ]
         
         for pattern, message in dangerous_patterns:
             if re.search(pattern, code, re.IGNORECASE):
                 errors.append(message)
                 security_logger.security(
-                    "Dangerous pattern detected",
-                    pattern=pattern,
-                    message=message
+                    f"Dangerous pattern detected: {message}",
+                    pattern=pattern
                 )
         
         return errors
