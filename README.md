@@ -43,8 +43,6 @@ project_chatbot/
 │   └── test_integration.py
 ├── data/                       # Data files
 │   └── Students_Dataset.xlsx
-├── docs/                       # Documentation
-│   └── HOW_IT_WORKS.md         # Architecture details
 ├── env/                        # Virtual environment (not in git)
 ├── run.py                      # Application entry point
 ├── requirements.txt            # Python dependencies
