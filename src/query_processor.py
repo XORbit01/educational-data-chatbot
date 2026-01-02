@@ -3,6 +3,8 @@ Query Processor for Educational Data Chatbot.
 
 Orchestrates the complete pipeline:
 Question → Code Generation → Validation → Execution → Response
+
+Developer: aliawada127001@outlook.com
 """
 
 import time

@@ -3,6 +3,8 @@ Custom Exceptions for Educational Data Chatbot.
 
 Provides typed exceptions for different error scenarios
 with helpful messages and error codes.
+
+Developer: aliawada127001@outlook.com
 """
 
 from enum import Enum

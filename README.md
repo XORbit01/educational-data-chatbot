@@ -4,6 +4,8 @@ A secure, 100% offline chatbot for querying educational data using natural langu
 
 **Academic Project - Lebanese University**
 
+**Developer:** aliawada127001@outlook.com
+
 ## Overview
 
 This application enables users to analyze student performance data through natural language queries. The system dynamically generates pandas code using a local LLM, validates it through multi-layer security, executes it in a sandboxed environment, and returns formatted insights with interactive visualizations.

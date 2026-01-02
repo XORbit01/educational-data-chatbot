@@ -2,6 +2,8 @@
 Integration Tests for Educational Data Chatbot.
 
 Tests the complete pipeline from question to result.
+
+Developer: aliawada127001@outlook.com
 """
 
 import pytest

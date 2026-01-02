@@ -2,6 +2,8 @@
 Logging System for Educational Data Chatbot.
 
 Provides structured logging for application, security, and performance events.
+
+Developer: aliawada127001@outlook.com
 """
 
 import logging

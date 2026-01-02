@@ -3,6 +3,8 @@ Tests for Code Validator.
 
 Tests the security validation including AST analysis,
 allowlist/denylist enforcement, and pattern detection.
+
+Developer: aliawada127001@outlook.com
 """
 
 import pytest

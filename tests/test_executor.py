@@ -3,6 +3,8 @@ Tests for Code Executor.
 
 Tests the sandboxed execution environment including
 timeout protection, safe globals, and error handling.
+
+Developer: aliawada127001@outlook.com
 """
 
 import pytest

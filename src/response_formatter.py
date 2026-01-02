@@ -3,6 +3,8 @@ Response Formatter for Educational Data Chatbot.
 
 Provides intelligent visualization generation and response formatting
 based on query results and data types.
+
+Developer: aliawada127001@outlook.com
 """
 
 from typing import Any, Optional, Tuple, List

@@ -2,6 +2,8 @@
 Utilities for Educational Data Chatbot.
 
 Provides schema extraction, prompt templates, and helper functions.
+
+Developer: aliawada127001@outlook.com
 """
 
 import re

@@ -3,6 +3,8 @@ Code Executor for Educational Data Chatbot.
 
 Provides sandboxed execution environment for validated pandas code.
 Implements timeout protection, memory limits, and error handling.
+
+Developer: aliawada127001@outlook.com
 """
 
 import signal

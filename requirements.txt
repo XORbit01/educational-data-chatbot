@@ -1,5 +1,6 @@
 # Educational Data Chatbot - Dependencies
 # 100% Offline LLM-powered data analysis
+# Developer: aliawada127001@outlook.com
 
 # Core Framework
 streamlit>=1.28.0

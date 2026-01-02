@@ -4,6 +4,8 @@ Educational Data Chatbot - Streamlit Application
 A modern chat interface for querying educational data
 using natural language. Powered by DeepSeek Coder 6.7B via Ollama.
 100% offline operation.
+
+Developer: aliawada127001@outlook.com
 """
 
 import streamlit as st

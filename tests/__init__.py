@@ -1,5 +1,7 @@
 """
 Test suite for Educational Data Chatbot.
+
+Developer: aliawada127001@outlook.com
 """
 
 import sys

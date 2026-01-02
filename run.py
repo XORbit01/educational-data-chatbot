@@ -3,6 +3,8 @@ Entry point for the Educational Data Chatbot.
 
 Run this file to start the Streamlit application.
 Usage: streamlit run run.py
+
+Developer: aliawada127001@outlook.com
 """
 
 import sys

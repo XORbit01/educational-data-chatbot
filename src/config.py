@@ -3,6 +3,8 @@ Configuration Management for Educational Data Chatbot.
 
 Centralized settings for LLM, security, execution, and UI.
 All values are designed for 100% offline operation.
+
+Developer: aliawada127001@outlook.com
 """
 
 from dataclasses import dataclass, field

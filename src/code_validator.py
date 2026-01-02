@@ -3,6 +3,8 @@ Code Validator for Educational Data Chatbot.
 
 Provides multi-layer security validation using AST analysis,
 allowlist/denylist enforcement, and pattern-based validation.
+
+Developer: aliawada127001@outlook.com
 """
 
 import ast

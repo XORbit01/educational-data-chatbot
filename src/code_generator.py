@@ -4,6 +4,8 @@ Code Generator for Educational Data Chatbot.
 Interfaces with Ollama to run DeepSeek Coder 6.7B locally
 for generating pandas code from natural language questions.
 100% offline operation.
+
+Developer: aliawada127001@outlook.com
 """
 
 import time
