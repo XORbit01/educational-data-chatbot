@@ -213,21 +213,89 @@ class CodeGenerator:
             True if connection successful, False otherwise
         """
         try:
-            # Try to list models
-            models = self.client.list()
-            available_models = [m.get('name', '') for m in models.get('models', [])]
+            # Try using ollama.list() directly (simpler API)
+            try:
+                models_response = ollama.list()
+            except Exception:
+                # Fallback to client.list()
+                models_response = self.client.list()
+            
+            # Debug: log the response type
+            llm_logger.debug(
+                "Ollama list response",
+                response_type=type(models_response).__name__,
+                response_preview=str(models_response)[:200]
+            )
+            
+            # Handle different possible response formats
+            available_models = []
+            
+            # The ollama.list() returns a dict with 'models' key
+            if isinstance(models_response, dict):
+                models_list = models_response.get('models', [])
+                if not models_list and 'models' not in models_response:
+                    # Maybe the response itself is the list
+                    models_list = models_response if isinstance(models_response, list) else []
+            elif isinstance(models_response, list):
+                models_list = models_response
+            else:
+                models_list = []
+            
+            # Extract model names
+            for model in models_list:
+                if isinstance(model, dict):
+                    # Try different possible keys that Ollama might use
+                    name = (
+                        model.get('name') or 
+                        model.get('model') or 
+                        model.get('model_name') or
+                        ''
+                    )
+                elif isinstance(model, str):
+                    name = model
+                else:
+                    continue
+                
+                # Only add non-empty names
+                if name and name.strip():
+                    available_models.append(name.strip())
+            
+            # Debug: log what we found
+            llm_logger.debug(
+                "Parsed models",
+                count=len(available_models),
+                models=available_models[:5]
+            )
             
             # Check if our model is available
+            # Match exact name or base name (e.g., "deepseek-coder:6.7b" or "deepseek-coder")
+            model_base = self.model.split(':')[0]
             model_available = any(
-                self.model in m or m.startswith(self.model.split(':')[0])
+                self.model == m or 
+                m == self.model or
+                m.startswith(model_base + ':') or
+                (':' not in m and m == model_base)
                 for m in available_models
             )
             
             if not model_available:
+                # Fallback: Try to show the model directly (sometimes list() doesn't work but model exists)
+                try:
+                    model_info = self.client.show(self.model)
+                    if model_info:
+                        llm_logger.info(
+                            "Model found via show() method",
+                            model=self.model
+                        )
+                        return True
+                except Exception:
+                    pass
+                
                 llm_logger.warning(
                     "Model not found",
                     model=self.model,
-                    available=available_models[:5]
+                    available=available_models[:5] if available_models else [],
+                    model_base=model_base
                 )
                 return False
             
@@ -241,7 +309,8 @@ class CodeGenerator:
         except Exception as e:
             llm_logger.error(
                 "Ollama connection failed",
-                error=str(e)
+                error=str(e),
+                error_type=type(e).__name__
             )
             return False
     
