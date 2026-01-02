@@ -2,6 +2,8 @@
 
 A secure, 100% offline chatbot for querying educational data using natural language. Powered by DeepSeek Coder 6.7B running locally via Ollama.
 
+**Academic Project - Lebanese University**
+
 ## Overview
 
 This application enables users to analyze student performance data through natural language queries. The system dynamically generates pandas code using a local LLM, validates it through multi-layer security, executes it in a sandboxed environment, and returns formatted insights with interactive visualizations.
@@ -551,12 +553,13 @@ Ensure `Students_Dataset.xlsx` is in the `data/` directory.
 
 This project is provided for educational purposes.
 
+## Academic Affiliation
+
+This project is part of **Academic Lebanese University**.
+
 ## Acknowledgments
 
+- Lebanese University for academic support
 - Ollama for local LLM runtime
 - DeepSeek for the Coder model
 - Streamlit for the UI framework
-
-## Additional Documentation
-
-For detailed architecture information, see [docs/HOW_IT_WORKS.md](docs/HOW_IT_WORKS.md).
