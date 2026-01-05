@@ -91,11 +91,20 @@ class CodeValidationError(ChatbotError):
         code: ErrorCode = ErrorCode.VALIDATION_FAILED
     ):
         self.violations = violations or []
+        
+        # Provide specific user messages based on error type
+        if code == ErrorCode.SYNTAX_ERROR:
+            user_msg = f"Syntax error in generated code: {message}. The AI generated invalid code. Please try rephrasing your question."
+        elif violations:
+            user_msg = f"Security validation failed: {', '.join(violations[:2])}. Please try a different question."
+        else:
+            user_msg = "The generated code contains unsafe operations. Please try a different question."
+        
         super().__init__(
             message=message,
             code=code,
             details=", ".join(self.violations) if self.violations else None,
-            user_message="The generated code contains unsafe operations. Please try a different question."
+            user_message=user_msg
         )
 
 
