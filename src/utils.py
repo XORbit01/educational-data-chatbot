@@ -55,8 +55,13 @@ def get_column_descriptions() -> str:
         Formatted column descriptions
     """
     return """
+IMPORTANT DATA STRUCTURE:
+- Each student has MULTIPLE rows (one per course/assessment combination)
+- student_id uniquely identifies a student
+- When counting students by attributes (gender, class_level), use drop_duplicates('student_id') FIRST to get unique students
+
 Column Descriptions:
-- student_id: Unique identifier for each student (integer)
+- student_id: Unique identifier for each student (integer) - USE THIS FOR DISTINCT STUDENT COUNTS
 - student_name: Student's name (string, format: Student_XXXX)
 - student_gender: Gender of the student (M = Male, F = Female)
 - class_level: Class/grade level (C1, C2, C3, C4, C5)
@@ -89,11 +94,14 @@ DATAFRAME SCHEMA:
 {get_column_descriptions()}
 
 EXAMPLE QUERIES:
-1. "Compare course scores" → df.groupby('course_name')['assessment_score'].mean()
-2. "Gender performance" → df.groupby('student_gender')['assessment_score'].mean()
-3. "Best class level" → df.groupby('class_level')['assessment_score'].mean().idxmax()
-4. "Attendance correlation" → df[['attendance_rate', 'assessment_score']].corr()
-5. "Top 5 students" → df.groupby('student_id')['assessment_score'].mean().nlargest(5)
+1. "How many males/females" → df.drop_duplicates('student_id')['student_gender'].value_counts()
+2. "Count students by gender" → df.drop_duplicates('student_id')['student_gender'].value_counts()
+3. "Students per class level" → df.drop_duplicates('student_id')['class_level'].value_counts()
+4. "Total number of students" → df['student_id'].nunique()
+5. "Compare course scores" → df.groupby('course_name')['assessment_score'].mean()
+6. "Gender performance" → df.groupby('student_gender')['assessment_score'].mean()
+7. "Top 5 students" → df.groupby('student_id')['assessment_score'].mean().nlargest(5)
+8. "Attendance correlation" → df[['attendance_rate', 'assessment_score']].corr()
 
 USER QUESTION: "{question}"
 
