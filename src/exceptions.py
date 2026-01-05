@@ -124,7 +124,13 @@ class SecurityViolationError(ChatbotError):
         if "lambda" in blocked_item.lower():
             user_msg = "Lambda functions are not supported. Please try a different query."
         elif "import" in violation_type.lower():
-            user_msg = "Import statements are not allowed. Please rephrase your question."
+            # Show what import was attempted
+            # blocked_item is a string representation of a list like "['plotly', 'pandas']"
+            imports_str = blocked_item
+            if blocked_item.startswith('[') and blocked_item.endswith(']'):
+                # Parse the list string safely
+                imports_str = blocked_item.strip('[]').replace("'", "").replace('"', '')
+            user_msg = f"Import statements are not allowed (attempted: {imports_str}). All libraries (px, go, pd, np, df) are already imported. Please rephrase your question."
         else:
             user_msg = f"Security block: {blocked_item}. Please try rephrasing your question."
         super().__init__(

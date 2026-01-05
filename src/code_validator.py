@@ -154,7 +154,16 @@ class CodeValidator:
         try:
             tree = ast.parse(code)
         except SyntaxError as e:
-            security_logger.error(f"Syntax error in code: {e}")
+            security_logger.error(
+                "Syntax error in code",
+                error_message=str(e),
+                error_line=getattr(e, 'lineno', 'unknown'),
+                error_offset=getattr(e, 'offset', 'unknown'),
+                error_text=getattr(e, 'text', 'unknown'),
+                code_preview=code[:500],
+                code_full=code,
+                code_lines=code.split('\n')
+            )
             raise CodeValidationError(
                 message=f"Syntax error: {e.msg}",
                 code=ErrorCode.SYNTAX_ERROR
@@ -184,8 +193,11 @@ class CodeValidator:
                     "Import attempt blocked",
                     imports=blocked_imports
                 )
+                imports_str = ", ".join(blocked_imports[:3])  # Show first 3 imports
+                if len(blocked_imports) > 3:
+                    imports_str += f" and {len(blocked_imports) - 3} more"
                 raise SecurityViolationError(
-                    message="Import statements are not allowed",
+                    message=f"Import statements are not allowed: {imports_str}",
                     violation_type="blocked_import",
                     blocked_item=str(blocked_imports)
                 )

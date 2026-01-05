@@ -323,6 +323,12 @@ Find any string that starts with ' or " but doesn't end with the same quote, and
         
         return f"""You are a pandas and Plotly expert. Fix the syntax error in the code below.
 
+CRITICAL RULES (MUST FOLLOW):
+- DO NOT use import statements (px, go, pd, np, df are already available)
+- DO NOT use lambda functions
+- DO NOT use exec, eval, open, or any file operations
+- The libraries px, go, pd, np are PRE-IMPORTED and ready to use
+
 ORIGINAL REQUEST: {user_question}
 
 BROKEN CODE (HAS SYNTAX ERROR - DO NOT REPEAT):
@@ -334,13 +340,15 @@ SYNTAX ERROR: {error}
 {error_details}
 {fix_example}
 {repeat_warning}
-CRITICAL INSTRUCTIONS:
+CRITICAL FIX INSTRUCTIONS:
 1. The code above is BROKEN - it will NOT work
 2. Find the syntax error and fix it completely
 3. For unterminated strings: add a value and close the quote (e.g., color='#FF6B6B' not color=')
-4. Generate ONLY the FIXED code - no explanations, no markdown blocks, no comments
+4. Generate ONLY the FIXED code - no explanations, no markdown blocks, no comments, NO IMPORTS
 5. The fixed code must be valid Python that can be executed
 6. Every string must have matching opening and closing quotes
+7. NEVER write import statements - all libraries are already imported
+8. Use df, pd, np, px, go directly - they are already available
 
 Generate the FIXED code:"""
     
