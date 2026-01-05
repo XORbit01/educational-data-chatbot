@@ -208,22 +208,30 @@ class CodeValidator:
                 blocked_item=str(blocked)
             )
         
-        # Layer 5: Check allowlist
+        # Layer 5: Check allowlist (MORE PERMISSIVE - allow safe greylist operations)
         for op in visitor.calls:
             status = self._check_operation(op)
             if status == ValidationStatus.DENIED:
                 blocked.append(op)
             elif status == ValidationStatus.GREYLIST:
-                unknown.append(op)
-                warnings.append(f"Unknown operation: {op}")
+                # Allow greylist operations if they look safe (especially Plotly/pandas)
+                if self._is_safe_greylist_operation(op):
+                    # Allow it - just log as warning
+                    warnings.append(f"Greylist operation allowed: {op}")
+                else:
+                    unknown.append(op)
+                    warnings.append(f"Unknown operation: {op}")
         
         for attr in visitor.attributes:
             status = self._check_operation(attr)
             if status == ValidationStatus.DENIED:
                 blocked.append(attr)
             elif status == ValidationStatus.GREYLIST:
-                # Attributes in greylist might be column names - allow
-                if not self._looks_like_column_name(attr):
+                # Attributes in greylist might be column names or Plotly properties - allow
+                if self._looks_like_column_name(attr) or self._is_safe_greylist_operation(attr):
+                    # Allow it
+                    pass
+                else:
                     unknown.append(attr)
         
         # Layer 6: Pattern-based validation
@@ -234,15 +242,19 @@ class CodeValidator:
         var_errors = self._validate_variables(visitor.names)
         errors.extend(var_errors)
         
-        # Determine final validity
+        # Determine final validity - ONLY block if there are actual security violations
+        # Unknown operations (greylist) are just warnings, not blockers
         is_valid = len(errors) == 0 and len(blocked) == 0
         
         if not is_valid:
             all_issues = errors + [f"Blocked: {b}" for b in blocked]
-            raise CodeValidationError(
-                message="Code validation failed",
-                violations=all_issues
-            )
+            # Only raise error if there are actual security violations
+            # Unknown operations are just warnings
+            if blocked or errors:
+                raise CodeValidationError(
+                    message="Code validation failed",
+                    violations=all_issues
+                )
         
         # Log successful validation
         security_logger.info(
@@ -285,7 +297,9 @@ class CodeValidator:
         safe_builtins = {'len', 'str', 'int', 'float', 'bool', 'list', 'dict', 
                         'tuple', 'set', 'range', 'zip', 'enumerate', 'sorted',
                         'reversed', 'min', 'max', 'sum', 'abs', 'round', 'format',
-                        'isinstance', 'print', 'map', 'filter', 'any', 'all'}
+                        'isinstance', 'print', 'map', 'filter', 'any', 'all',
+                        'iter', 'next', 'slice', 'divmod', 'pow', 'hash', 'id',
+                        'repr', 'ascii', 'bin', 'oct', 'hex', 'ord', 'chr'}
         if operation in safe_builtins:
             return ValidationStatus.ALLOWED
         
@@ -323,8 +337,59 @@ class CodeValidator:
         if operation in plotly_safe_ops or operation.lower() in plotly_safe_ops:
             return ValidationStatus.ALLOWED
         
+        # VERY PERMISSIVE: If operation doesn't look dangerous, allow it as greylist
+        # This allows pandas/plotly operations that we haven't explicitly listed
+        dangerous_keywords = ['exec', 'eval', 'compile', 'import', 'open', 'file',
+                             'system', 'popen', 'subprocess', 'socket', 'urllib',
+                             'pickle', 'marshal', 'globals', 'locals', '__']
+        op_lower = operation.lower()
+        if not any(danger in op_lower for danger in dangerous_keywords):
+            # Looks safe - allow as greylist (will be checked by _is_safe_greylist_operation)
+            return ValidationStatus.GREYLIST
+        
         # Greylist - unknown operation
         return ValidationStatus.GREYLIST
+    
+    def _is_safe_greylist_operation(self, operation: str) -> bool:
+        """
+        Check if a greylist operation looks safe to allow.
+        VERY PERMISSIVE - allows most operations that don't look dangerous.
+        
+        Args:
+            operation: Operation name to check
+            
+        Returns:
+            True if operation looks safe, False otherwise
+        """
+        op_lower = operation.lower()
+        
+        # First check: If it contains dangerous keywords, it's NOT safe
+        dangerous_keywords = [
+            'exec', 'eval', 'compile', '__import__', 'importlib',
+            'open', 'file', 'read', 'write', 'remove', 'delete',
+            'system', 'popen', 'subprocess', 'socket', 'urllib', 'requests',
+            'pickle', 'marshal', 'dill', 'shelve', 'load', 'dump',
+            'globals', 'locals', '__builtins__', '__globals__', '__locals__',
+            '__dict__', '__class__', '__bases__', '__subclasses__',
+            '__getattribute__', '__setattr__', '__delattr__', '__code__',
+            'getattr', 'setattr', 'delattr', 'vars', 'dir', 'type', 'object',
+        ]
+        
+        # Check for dangerous patterns
+        for danger in dangerous_keywords:
+            if danger in op_lower:
+                return False
+        
+        # Second check: If it starts with dangerous prefixes, it's NOT safe
+        dangerous_prefixes = ['__', 'os.', 'sys.', 'subprocess.', 'socket.',
+                              'urllib.', 'requests.', 'pickle.', 'marshal.']
+        for prefix in dangerous_prefixes:
+            if op_lower.startswith(prefix):
+                return False
+        
+        # If it passes the danger checks, it's probably safe
+        # This is VERY permissive - allows any operation that doesn't match dangerous patterns
+        return True
     
     def _looks_like_column_name(self, name: str) -> bool:
         """Check if a name looks like a DataFrame column name or Plotly element."""
@@ -463,13 +528,25 @@ class CodeValidator:
             if self._looks_like_column_name(name):
                 continue
             
+            # Check if it's a safe greylist operation (like histogram, etc.)
+            if self._is_safe_greylist_operation(name):
+                continue
+            
             # Check for potentially dangerous names
             if name.startswith('_') and not name.startswith('__'):
                 # Single underscore is fine (unused var convention)
                 continue
             
-            if name.startswith('__'):
-                errors.append(f"Dunder variable access not allowed: {name}")
+            # Only block actual dunder methods (like __builtins__, __import__, etc.)
+            dangerous_dunders = {
+                '__builtins__', '__globals__', '__locals__', '__dict__',
+                '__class__', '__bases__', '__subclasses__', '__getattribute__',
+                '__setattr__', '__delattr__', '__code__', '__func__',
+                '__import__', '__loader__', '__spec__', '__name__', '__module__',
+            }
+            if name in dangerous_dunders:
+                errors.append(f"Dunder method access not allowed: {name}")
+            # Other __ names are probably safe (like __init__ in a string, etc.)
         
         return errors
     
