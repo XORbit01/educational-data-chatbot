@@ -284,8 +284,43 @@ class CodeValidator:
         # Check if it's a common Python builtin that's safe
         safe_builtins = {'len', 'str', 'int', 'float', 'bool', 'list', 'dict', 
                         'tuple', 'set', 'range', 'zip', 'enumerate', 'sorted',
-                        'reversed', 'min', 'max', 'sum', 'abs', 'round'}
+                        'reversed', 'min', 'max', 'sum', 'abs', 'round', 'format',
+                        'isinstance', 'print', 'map', 'filter', 'any', 'all'}
         if operation in safe_builtins:
+            return ValidationStatus.ALLOWED
+        
+        # Check if it's a Plotly-related operation (more permissive)
+        plotly_safe_ops = {
+            'path', 'names', 'parents', 'ids', 'hole', 'pull', 'textinfo',
+            'textposition', 'textfont', 'insidetextfont', 'outsidetextfont',
+            'hovertemplate', 'hoverinfo', 'hoverlabel', 'customdata',
+            'marker', 'opacity', 'orientation', 'barmode', 'nbinsx', 'nbinsy',
+            'trendline', 'color_discrete_sequence', 'color_continuous_scale',
+            'facet_row', 'facet_col', 'animation_frame', 'template',
+            'title', 'xaxis_title', 'yaxis_title', 'showlegend',
+            'legend', 'margin', 'paper_bgcolor', 'plot_bgcolor',
+            'font', 'height', 'width', 'autosize', 'visible',
+            'name', 'mode', 'fill', 'fillcolor', 'line_color', 'line_width',
+            'showscale', 'colorbar', 'colorscale', 'zmid', 'zmin', 'zmax',
+            'r', 'theta', 'base', 'text', 'texttemplate', 'symbol',
+            'size', 'sizemode', 'sizeref', 'color', 'cmin', 'cmax',
+            'radialaxis', 'angularaxis', 'polar', 'ternary', 'geo', 'mapbox',
+            'scene', 'xaxis', 'yaxis', 'zaxis', 'domain', 'range',
+            'ticktext', 'tickvals', 'tickmode', 'nticks', 'tick0', 'dtick',
+            'showgrid', 'gridcolor', 'gridwidth', 'zeroline', 'zerolinecolor',
+            'showticklabels', 'tickfont', 'tickangle', 'tickformat',
+            'categoryorder', 'categoryarray', 'showline', 'linecolor', 'linewidth',
+            'mirror', 'anchor', 'side', 'overlaying', 'position', 'matches',
+            'scaleanchor', 'scaleratio', 'constrain', 'constraintoward',
+            'hovermode', 'clickmode', 'dragmode', 'selectdirection',
+            'hoverdistance', 'spikedistance', 'hoveron', 'hoverinfo',
+            'uniformtext', 'bargap', 'bargroupgap', 'barnorm', 'boxmode', 'boxgap',
+            'violinmode', 'violingap', 'waterfallmode', 'waterfallgap',
+            'funnelmode', 'funnelgap', 'extendpiecolors', 'extendtreemapcolors',
+            'extendsunburstcolors', 'hidesources', 'piecolorway', 'sunburstcolorway',
+            'treemapcolorway', 'funnelareacolorway', 'iciclecolorway',
+        }
+        if operation in plotly_safe_ops or operation.lower() in plotly_safe_ops:
             return ValidationStatus.ALLOWED
         
         # Greylist - unknown operation
@@ -305,7 +340,14 @@ class CodeValidator:
             'xaxis', 'yaxis', 'font', 'legend', 'annotation', 'shape',
             'bar', 'scatter', 'pie', 'histogram', 'box', 'heatmap',
             'polar', 'radial', 'theta', 'sunburst', 'treemap', 'indicator',
-            'gauge', 'funnel', 'waterfall', 'violin', 'contour', 'surface'
+            'gauge', 'funnel', 'waterfall', 'violin', 'contour', 'surface',
+            'path', 'value', 'label', 'parent', 'template', 'mode', 'fill',
+            'opacity', 'size', 'symbol', 'dash', 'width', 'height', 'margin',
+            'bgcolor', 'paper', 'colorscale', 'showscale', 'colorbar',
+            'ticktext', 'tickvals', 'tickmode', 'showgrid', 'zeroline',
+            'domain', 'range', 'scale', 'continuous', 'discrete', 'sequence',
+            'orientation', 'barmode', 'boxmode', 'violinmode', 'facet',
+            'trendline', 'marginal', 'animation', 'frame', 'slider',
         ]
         name_lower = name.lower()
         return (any(pattern in name_lower for pattern in column_patterns) or
