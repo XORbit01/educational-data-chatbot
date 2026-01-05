@@ -86,6 +86,8 @@ class CodeGenerator:
         """
         start_time = time.perf_counter()
         last_error = None
+        previous_errors = []  # Track errors to detect loops
+        original_prompt = prompt  # Keep original for reference
         
         for attempt in range(max_retries + 1):
             try:
@@ -113,14 +115,72 @@ class CodeGenerator:
                         code=ErrorCode.LLM_INVALID_RESPONSE
                     )
                 
+                # Log raw response for debugging
+                llm_logger.debug(
+                    "Raw LLM response",
+                    response_preview=raw_response[:500],
+                    response_length=len(raw_response),
+                    attempt=attempt + 1
+                )
+                
                 # Extract code from response
                 code = extract_code_from_response(raw_response)
                 
+                # Log extracted code for debugging
+                llm_logger.debug(
+                    "Extracted code",
+                    code_preview=code[:500] if code else "None",
+                    code_length=len(code) if code else 0,
+                    attempt=attempt + 1
+                )
+                
                 if not code or len(code.strip()) < 5:
+                    llm_logger.error(
+                        "Code extraction failed",
+                        raw_response=raw_response[:500],
+                        extracted_code=code[:200] if code else "None"
+                    )
                     raise CodeGenerationError(
                         message="Could not extract valid code from response",
                         code=ErrorCode.CODE_EXTRACTION_FAILED,
                         details=raw_response[:200]
+                    )
+                
+                # Validate syntax - if error, retry with feedback
+                syntax_error = self._validate_syntax(code)
+                if syntax_error and attempt < max_retries:
+                    # Check if we're getting the same error (infinite loop detection)
+                    if syntax_error in previous_errors:
+                        llm_logger.error(
+                            "Same syntax error repeated - stopping retry loop",
+                            error=syntax_error,
+                            previous_errors=previous_errors,
+                            attempt=attempt + 1
+                        )
+                        raise CodeGenerationError(
+                            message=f"Syntax error persists after retries: {syntax_error}",
+                            code=ErrorCode.CODE_EXTRACTION_FAILED,
+                            details=code[:500]
+                        )
+                    
+                    previous_errors.append(syntax_error)
+                    
+                    llm_logger.warning(
+                        "Syntax error detected, retrying with feedback",
+                        error=syntax_error,
+                        attempt=attempt + 1,
+                        code_preview=code[:300]
+                    )
+                    # Build retry prompt with syntax error feedback
+                    prompt = self._build_syntax_error_retry_prompt(original_prompt, code, syntax_error, previous_errors)
+                    continue  # Retry with new prompt
+                
+                if syntax_error:
+                    # Final attempt failed with syntax error
+                    raise CodeGenerationError(
+                        message=f"Syntax error in generated code: {syntax_error}",
+                        code=ErrorCode.CODE_EXTRACTION_FAILED,
+                        details=code[:500]
                     )
                 
                 generation_time = (time.perf_counter() - start_time) * 1000
@@ -188,6 +248,101 @@ class CodeGenerator:
             model=self.model,
             error=last_error
         )
+    
+    def _validate_syntax(self, code: str) -> Optional[str]:
+        """
+        Validate code syntax.
+        
+        Args:
+            code: Code string to validate
+            
+        Returns:
+            Error message if syntax error, None if valid
+        """
+        import ast
+        try:
+            ast.parse(code)
+            return None
+        except SyntaxError as e:
+            return f"{e.msg} (line {e.lineno}, offset {e.offset})"
+    
+    def _build_syntax_error_retry_prompt(self, original_prompt: str, broken_code: str, error: str, previous_errors: list = None) -> str:
+        """
+        Build a retry prompt that includes syntax error feedback.
+        
+        Args:
+            original_prompt: Original generation prompt
+            broken_code: The code that had syntax errors
+            error: The syntax error message
+            previous_errors: List of previous errors (to show pattern)
+            
+        Returns:
+            New prompt with error feedback
+        """
+        # Extract the user question from original prompt
+        user_question = ""
+        if 'USER QUESTION:' in original_prompt:
+            try:
+                question_part = original_prompt.split('USER QUESTION:')[1].split('CRITICAL')[0].strip().strip('"')
+                user_question = question_part
+            except:
+                user_question = "See original request"
+        else:
+            user_question = "Generate the requested code"
+        
+        # Extract specific error details and fix instructions
+        error_details = ""
+        fix_example = ""
+        
+        if "unterminated string literal" in error.lower():
+            error_details = "UNTERMINATED STRING LITERAL - A string starts with a quote (single ' or double \") but doesn't have a matching closing quote."
+            # Show example based on what we see in the broken code
+            if "color='" in broken_code:
+                fix_example = """
+EXAMPLE OF THE FIX NEEDED:
+BROKEN: marker=dict(color='
+FIXED:  marker=dict(color='#FF6B6B')
+
+The string color=' is incomplete - you need to add a value and close the quote.
+"""
+            else:
+                fix_example = """
+EXAMPLE OF THE FIX NEEDED:
+BROKEN: some_variable = 'incomplete
+FIXED:  some_variable = 'complete'
+
+Find any string that starts with ' or " but doesn't end with the same quote, and close it.
+"""
+        elif "invalid syntax" in error.lower():
+            error_details = "INVALID SYNTAX - Check for missing commas, parentheses, brackets, or quotes."
+        
+        # Build warning if this is a repeat
+        repeat_warning = ""
+        if previous_errors and len(previous_errors) > 1:
+            repeat_warning = "\n⚠️ WARNING: This error occurred before. Make sure you're actually fixing it, not repeating the same mistake!\n"
+        
+        return f"""You are a pandas and Plotly expert. Fix the syntax error in the code below.
+
+ORIGINAL REQUEST: {user_question}
+
+BROKEN CODE (HAS SYNTAX ERROR - DO NOT REPEAT):
+```python
+{broken_code}
+```
+
+SYNTAX ERROR: {error}
+{error_details}
+{fix_example}
+{repeat_warning}
+CRITICAL INSTRUCTIONS:
+1. The code above is BROKEN - it will NOT work
+2. Find the syntax error and fix it completely
+3. For unterminated strings: add a value and close the quote (e.g., color='#FF6B6B' not color=')
+4. Generate ONLY the FIXED code - no explanations, no markdown blocks, no comments
+5. The fixed code must be valid Python that can be executed
+6. Every string must have matching opening and closing quotes
+
+Generate the FIXED code:"""
     
     def generate_from_question(
         self, 
