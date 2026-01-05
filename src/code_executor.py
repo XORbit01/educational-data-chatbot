@@ -18,6 +18,9 @@ import traceback
 
 import pandas as pd
 import numpy as np
+import plotly.express as px
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
 from config import config
 from exceptions import CodeExecutionError, ExecutionTimeoutError, ErrorCode
@@ -147,6 +150,11 @@ class CodeExecutor:
             'pd': pd,
             'np': np,
             
+            # Plotly for visualizations
+            'px': px,
+            'go': go,
+            'make_subplots': make_subplots,
+            
             # Safe built-in functions only
             'len': len,
             'str': str,
@@ -209,16 +217,21 @@ class CodeExecutor:
             exec(compiled, globals_dict, locals_dict)
             
             # Try to get the result from various sources
-            # 1. Check if 'result' was explicitly assigned
+            # 1. Check for Plotly figure (highest priority for visualizations)
+            for var in ['fig', 'figure', 'chart', 'plot']:
+                if var in locals_dict and isinstance(locals_dict[var], go.Figure):
+                    return locals_dict[var]
+            
+            # 2. Check if 'result' was explicitly assigned
             if 'result' in locals_dict:
                 return locals_dict['result']
             
-            # 2. Check for common result variable names
+            # 3. Check for common result variable names
             for var in ['output', 'data', 'answer', 'stats', 'summary']:
                 if var in locals_dict:
                     return locals_dict[var]
             
-            # 3. Return the last expression value
+            # 4. Return the last expression value
             # Parse code to get last expression
             try:
                 tree = compile(code, '<generated>', 'eval')
@@ -242,12 +255,17 @@ class CodeExecutor:
                     except:
                         pass
             
-            # 4. Return any DataFrame or Series in locals
+            # 5. Return any Plotly figure in locals
+            for value in locals_dict.values():
+                if isinstance(value, go.Figure):
+                    return value
+            
+            # 6. Return any DataFrame or Series in locals
             for value in locals_dict.values():
                 if isinstance(value, (pd.DataFrame, pd.Series)):
                     return value
             
-            # 5. Return first non-None value
+            # 7. Return first non-None value
             for value in locals_dict.values():
                 if value is not None and not callable(value):
                     return value
@@ -266,6 +284,8 @@ class CodeExecutor:
         """Determine the type of result for formatting."""
         if result is None:
             return "none"
+        elif isinstance(result, go.Figure):
+            return "plotly_figure"
         elif isinstance(result, pd.DataFrame):
             return "dataframe"
         elif isinstance(result, pd.Series):
