@@ -292,14 +292,24 @@ class CodeValidator:
         return ValidationStatus.GREYLIST
     
     def _looks_like_column_name(self, name: str) -> bool:
-        """Check if a name looks like a DataFrame column name."""
+        """Check if a name looks like a DataFrame column name or Plotly element."""
         column_patterns = [
             'student', 'course', 'assessment', 'class', 'gender',
             'score', 'rate', 'count', 'views', 'downloads', 'name',
             'id', 'level', 'no', 'hand', 'moodle', 'attendance', 'raised'
         ]
+        # Plotly-related names that are safe
+        plotly_patterns = [
+            'fig', 'figure', 'chart', 'plot', 'trace', 'layout', 'data',
+            'color', 'marker', 'line', 'text', 'hover', 'title', 'axis',
+            'xaxis', 'yaxis', 'font', 'legend', 'annotation', 'shape',
+            'bar', 'scatter', 'pie', 'histogram', 'box', 'heatmap',
+            'polar', 'radial', 'theta', 'sunburst', 'treemap', 'indicator',
+            'gauge', 'funnel', 'waterfall', 'violin', 'contour', 'surface'
+        ]
         name_lower = name.lower()
-        return any(pattern in name_lower for pattern in column_patterns)
+        return (any(pattern in name_lower for pattern in column_patterns) or
+                any(pattern in name_lower for pattern in plotly_patterns))
     
     def _check_dangerous_patterns(self, code: str) -> List[str]:
         """
@@ -356,7 +366,18 @@ class CodeValidator:
         errors = []
         
         # These are always allowed
-        always_allowed = {'df', 'pd', 'np', 'True', 'False', 'None'}
+        always_allowed = {
+            'df', 'pd', 'np', 'True', 'False', 'None',
+            # Plotly variables
+            'px', 'go', 'fig', 'figure', 'chart', 'plot', 'trace', 'traces',
+            'colors', 'layout', 'annotation', 'annotations', 'marker', 'line',
+            # Common iteration variables
+            'i', 'j', 'k', 'n', 'x', 'y', 'z', 'r', 'v', 'c',
+            # Data variables
+            'corr', 'avg', 'total', 'mean', 'median', 'std', 'var',
+            'numeric_cols', 'courses', 'levels', 'genders', 'students',
+            'top_students', 'avg_score', 'scores', 'values', 'labels',
+        }
         
         # Common temp variable patterns are allowed
         temp_patterns = [
@@ -373,6 +394,18 @@ class CodeValidator:
             r'^idx\d*$',         # idx, idx1
             r'^row\d*$',         # row, row1
             r'^col\d*$',         # col, col1
+            r'^fig\d*$',         # fig, fig1, fig2 (Plotly)
+            r'^trace\d*$',       # trace, trace1, trace2 (Plotly)
+            r'^chart\d*$',       # chart, chart1 (Plotly)
+            r'^plot\d*$',        # plot, plot1 (Plotly)
+            r'^color\d*$',       # color, color1, colors
+            r'^label\d*$',       # label, label1, labels
+            r'^value\d*$',       # value, value1, values
+            r'^score\d*$',       # score, score1, scores
+            r'^level\d*$',       # level, level1
+            r'^course\d*$',      # course, course1
+            r'^gender\d*$',      # gender
+            r'^student\d*$',     # student
         ]
         
         for name in names:
