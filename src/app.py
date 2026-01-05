@@ -59,17 +59,49 @@ st.markdown("""
         --warning: #f59e0b;
     }
     
+    /* Prevent style flash - apply immediately */
+    html, body {
+        background: #0a0a0f !important;
+        color: #f1f5f9 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    /* Prevent white flash on load */
+    #root, #root > div {
+        background: #0a0a0f !important;
+    }
+    
+    /* Ensure Streamlit app container is styled from start */
+    [data-testid="stAppViewContainer"],
+    [data-testid="stAppViewContainer"] > div {
+        background: #0a0a0f !important;
+    }
+    
     /* Global styles */
     .stApp {
-        background: var(--bg-primary);
-        font-family: 'Plus Jakarta Sans', sans-serif;
+        background: var(--bg-primary) !important;
+        font-family: 'Plus Jakarta Sans', sans-serif !important;
+        color: var(--text-primary) !important;
+    }
+    
+    /* Ensure main content area has consistent styling */
+    .main .block-container {
+        background: transparent !important;
     }
     
     /* Main container */
     .main .block-container {
-        padding-top: 2rem;
-        padding-bottom: 2rem;
-        max-width: 1200px;
+        padding-top: 2rem !important;
+        padding-bottom: 2rem !important;
+        max-width: 1200px !important;
+        background: transparent !important;
+    }
+    
+    /* Prevent Streamlit default text color flash */
+    .main, .main p, .main h1, .main h2, .main h3, .main h4, .main h5, .main h6,
+    .main div, .main span, .main label {
+        color: var(--text-primary) !important;
     }
     
     /* Header styling */
@@ -164,17 +196,33 @@ st.markdown("""
         border: 1px solid rgba(239, 68, 68, 0.3);
     }
     
-    /* Sidebar styling */
-    section[data-testid="stSidebar"] {
-        background: var(--bg-secondary);
-        border-right: 1px solid var(--border-color);
+    /* Sidebar styling - prevent flash */
+    section[data-testid="stSidebar"],
+    [data-testid="stSidebar"] {
+        background: var(--bg-secondary) !important;
+        border-right: 1px solid var(--border-color) !important;
     }
     
-    section[data-testid="stSidebar"] .block-container {
-        padding-top: 2rem;
+    section[data-testid="stSidebar"] .block-container,
+    [data-testid="stSidebar"] .block-container {
+        padding-top: 2rem !important;
+        background: transparent !important;
     }
     
-    /* Input styling */
+    /* Sidebar text colors */
+    [data-testid="stSidebar"] * {
+        color: var(--text-primary) !important;
+    }
+    
+    [data-testid="stSidebar"] h1,
+    [data-testid="stSidebar"] h2,
+    [data-testid="stSidebar"] h3,
+    [data-testid="stSidebar"] p {
+        color: var(--text-primary) !important;
+    }
+    
+    /* Input styling - prevent flash */
+    .stTextInput > div > div > input,
     .stTextInput input {
         background: var(--bg-tertiary) !important;
         border: 1px solid var(--border-color) !important;
@@ -182,11 +230,19 @@ st.markdown("""
         color: var(--text-primary) !important;
         padding: 0.75rem 1rem !important;
         font-size: 1rem !important;
+        transition: all 0.2s ease !important;
     }
     
-    .stTextInput input:focus {
+    .stTextInput input:focus,
+    .stTextInput > div > div > input:focus {
         border-color: var(--accent-primary) !important;
         box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2) !important;
+        outline: none !important;
+    }
+    
+    /* Ensure input container is styled */
+    .stTextInput > div {
+        background: transparent !important;
     }
     
     /* Button styling */
@@ -269,17 +325,56 @@ st.markdown("""
         40% { transform: translateY(-8px); }
     }
     
-    /* Expander styling */
-    .streamlit-expanderHeader {
+    /* Expander styling - prevent flash */
+    .streamlit-expanderHeader,
+    [data-testid="stExpander"] > div:first-child {
         background: var(--bg-tertiary) !important;
         border-radius: 8px !important;
         border: 1px solid var(--border-color) !important;
+        color: var(--text-primary) !important;
     }
     
-    /* DataFrame styling */
-    .dataframe {
+    .streamlit-expanderContent,
+    [data-testid="stExpander"] > div:last-child {
+        background: transparent !important;
+        color: var(--text-primary) !important;
+    }
+    
+    /* Code block styling - prevent flash */
+    .stCodeBlock,
+    [data-testid="stCodeBlock"] {
+        background: #1e1e2e !important;
+        border: 1px solid rgba(99, 102, 241, 0.3) !important;
+    }
+    
+    .stCodeBlock pre,
+    [data-testid="stCodeBlock"] pre {
+        background: #1e1e2e !important;
+        color: #f1f5f9 !important;
+    }
+    
+    /* DataFrame styling - prevent flash */
+    .dataframe,
+    [data-testid="stDataFrame"] {
         font-family: 'JetBrains Mono', monospace !important;
         font-size: 0.85rem !important;
+        background: var(--bg-tertiary) !important;
+        color: var(--text-primary) !important;
+    }
+    
+    /* Plotly chart container - prevent flash */
+    [data-testid="stPlotlyChart"],
+    .js-plotly-plot {
+        background: transparent !important;
+    }
+    
+    /* Ensure all Streamlit elements have consistent styling */
+    .stMarkdown,
+    .stMarkdown p,
+    .stMarkdown h1,
+    .stMarkdown h2,
+    .stMarkdown h3 {
+        color: var(--text-primary) !important;
     }
     
     /* Scrollbar */
