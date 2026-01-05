@@ -98,11 +98,19 @@ st.markdown("""
         background: transparent !important;
     }
     
-    /* Prevent Streamlit default text color flash */
-    .main, .main p, .main h1, .main h2, .main h3, .main h4, .main h5, .main h6,
-    .main div, .main span, .main label {
+    /* Prevent Streamlit default text color flash - but don't hide content */
+    .main p, .main h1, .main h2, .main h3, .main h4, .main h5, .main h6,
+    .main label {
         color: var(--text-primary) !important;
     }
+    
+    /* Don't force color on all divs - let content be visible */
+    .main {
+        color: var(--text-primary);
+    }
+    
+    /* Ensure Streamlit widgets are visible - but don't force display */
+    /* Let Streamlit handle the natural display flow */
     
     /* Header styling */
     .app-header {
@@ -209,16 +217,20 @@ st.markdown("""
         background: transparent !important;
     }
     
-    /* Sidebar text colors */
-    [data-testid="stSidebar"] * {
-        color: var(--text-primary) !important;
-    }
-    
+    /* Sidebar text colors - be more specific to avoid hiding content */
     [data-testid="stSidebar"] h1,
     [data-testid="stSidebar"] h2,
     [data-testid="stSidebar"] h3,
-    [data-testid="stSidebar"] p {
+    [data-testid="stSidebar"] h4,
+    [data-testid="stSidebar"] p,
+    [data-testid="stSidebar"] label,
+    [data-testid="stSidebar"] span:not([class*="metric"]) {
         color: var(--text-primary) !important;
+    }
+    
+    /* Don't force color on buttons and interactive elements */
+    [data-testid="stSidebar"] button {
+        color: inherit !important;
     }
     
     /* Input styling - prevent flash */
@@ -368,14 +380,14 @@ st.markdown("""
         background: transparent !important;
     }
     
-    /* Ensure all Streamlit elements have consistent styling */
-    .stMarkdown,
+    /* Ensure all Streamlit elements have consistent styling but don't hide content */
     .stMarkdown p,
     .stMarkdown h1,
     .stMarkdown h2,
     .stMarkdown h3 {
         color: var(--text-primary) !important;
     }
+    
     
     /* Scrollbar */
     ::-webkit-scrollbar {
@@ -611,6 +623,40 @@ def render_chat():
         process_query(user_input)
 
 
+def _user_asks_for_visualization(query: str) -> bool:
+    """Check if user's query explicitly asks for a visualization.
+    
+    Must be VERY strict - only return True if user explicitly uses visualization words.
+    """
+    query_lower = query.lower()
+    
+    # Primary visualization keywords (must be present)
+    primary_keywords = [
+        'visualize', 'visualization', 'visual',  # Explicit visualization request
+        'chart', 'graph', 'plot',  # Chart type words
+    ]
+    
+    # Secondary keywords that indicate visualization when combined
+    secondary_patterns = [
+        'show me a chart', 'show me a graph', 'show me a plot',
+        'create a chart', 'create a graph', 'create a plot',
+        'display as chart', 'display as graph',
+        'draw a chart', 'draw a graph',
+        'pie chart', 'bar chart', 'histogram', 'heatmap', 
+        'scatter plot', 'box plot', 'line chart', 'radar chart', 
+        'sunburst', 'gauge chart'
+    ]
+    
+    # Check for primary keywords first (most explicit)
+    has_primary = any(keyword in query_lower for keyword in primary_keywords)
+    
+    # Check for secondary patterns
+    has_secondary = any(pattern in query_lower for pattern in secondary_patterns)
+    
+    # Only return True if user explicitly asks for visualization
+    return has_primary or has_secondary
+
+
 def process_query(query: str):
     """Process a user query and update the chat."""
     if not query.strip():
@@ -637,8 +683,10 @@ def process_query(query: str):
                     # No need for additional viz generation
                     pass
                 elif result.has_data and not isinstance(result.data, go.Figure):
-                    # Generate visualization for data results
-                    viz = generate_visualization(result.data, query)
+                    # Only generate visualization if user explicitly asked for it
+                    if _user_asks_for_visualization(query):
+                        viz = generate_visualization(result.data, query)
+                    # Otherwise, just return the data without visualization
                 
                 # Add assistant message
                 st.session_state.messages.append({

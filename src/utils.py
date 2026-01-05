@@ -79,6 +79,36 @@ Column Descriptions:
 """.strip()
 
 
+def get_visualization_examples_short() -> str:
+    """
+    Get concise visualization examples (when user didn't explicitly ask for visualization).
+    
+    Returns:
+        Short visualization reference
+    """
+    return """
+VISUALIZATION REFERENCE (only use if user explicitly asks for charts):
+- Use px.bar(), px.pie(), px.scatter(), px.histogram(), px.heatmap() for quick charts
+- Use go.Figure() with go.Bar(), go.Pie(), go.Scatter() for advanced customization
+- Always set title, labels, and colors. End with 'fig' variable.
+""".strip()
+
+
+def get_visualization_examples_short() -> str:
+    """
+    Get concise visualization examples (when user didn't explicitly ask for visualization).
+    
+    Returns:
+        Short visualization reference
+    """
+    return """
+VISUALIZATION REFERENCE (only use if user explicitly asks for charts):
+- Use px.bar(), px.pie(), px.scatter(), px.histogram(), px.heatmap() for quick charts
+- Use go.Figure() with go.Bar(), go.Pie(), go.Scatter() for advanced customization
+- Always set title, labels, and colors. End with 'fig' variable.
+""".strip()
+
+
 def get_visualization_examples() -> str:
     """
     Get Plotly visualization examples for the LLM.
@@ -198,9 +228,36 @@ def build_code_generation_prompt(question: str, schema: str) -> str:
     Returns:
         Complete prompt for code generation
     """
+    # Check if user asks for visualization to conditionally include examples
+    # Must be VERY strict - only if user explicitly uses visualization words
+    question_lower = question.lower()
+    asks_for_viz = (
+        any(kw in question_lower for kw in ['visualize', 'visualization', 'visual', 'chart', 'graph', 'plot']) or
+        any(pattern in question_lower for pattern in [
+            'show me a chart', 'show me a graph', 'create a chart', 'create a graph',
+            'pie chart', 'bar chart', 'histogram', 'heatmap', 'scatter plot', 'box plot', 'line chart'
+        ])
+    )
+    
+    # Only include full visualization examples if user asks for visualization
+    viz_examples = get_visualization_examples() if asks_for_viz else get_visualization_examples_short()
+    
     return f"""You are a pandas and Plotly expert. Generate Python code to answer the user's question.
-If the user asks for visualization/chart/graph/plot, create a beautiful Plotly figure.
-Otherwise, generate pandas code for data analysis.
+
+CRITICAL DECISION: WHEN TO USE VISUALIZATIONS
+- ONLY generate Plotly figures (fig) if the user EXPLICITLY uses these words:
+  * "visualize", "visualization", "visual", "chart", "graph", "plot"
+  * "show me a chart", "create a chart", "display as chart", "draw a chart"
+  * Specific chart types: "pie chart", "bar chart", "histogram", "heatmap", "scatter plot", etc.
+- For ALL OTHER questions (who, what, how many, compare, find, list, top, best, etc.):
+  * Return DATA only (DataFrame, Series, or scalar value)
+  * DO NOT create any Plotly figures - NO fig, NO px, NO go!
+  * Examples: "Who are the top 10 students?" → return DataFrame, NOT a chart
+  * Examples: "Who is the best student?" → return data, NOT a chart
+  * Examples: "How many students?" → return number, NOT a chart
+  * Examples: "Compare scores" → return comparison data, NOT a chart
+  * Examples: "List top performers" → return data, NOT a chart
+  * ONLY if user says "visualize the top 10" or "show me a chart of top 10" → THEN create chart
 
 DATAFRAME SCHEMA:
 {schema}
@@ -211,25 +268,35 @@ AVAILABLE LIBRARIES:
 - df: The pandas DataFrame with student data
 - pd: pandas library
 - np: numpy library  
-- px: plotly.express (for quick beautiful charts)
-- go: plotly.graph_objects (for advanced customization)
+- px: plotly.express (ONLY use when user asks for visualization)
+- go: plotly.graph_objects (ONLY use when user asks for visualization)
 
-COLOR PALETTES TO USE:
+COLOR PALETTES (ONLY for visualizations):
 - Vibrant: ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F']
 - Gradient: 'Viridis', 'Plasma', 'Inferno', 'Magma', 'Cividis', 'Blues', 'RdBu_r'
 - Qualitative: px.colors.qualitative.Set2, px.colors.qualitative.Pastel
 
-DATA ANALYSIS EXAMPLES:
+DATA ANALYSIS EXAMPLES (NO VISUALIZATIONS - just return data):
 1. "How many males/females" → df.drop_duplicates('student_id')['student_gender'].value_counts()
-2. "Count students by gender" → df.drop_duplicates('student_id')['student_gender'].value_counts()
-3. "Students per class level" → df.drop_duplicates('student_id')['class_level'].value_counts()
-4. "Total number of students" → df['student_id'].nunique()
+2. "Who is the best student?" → 
+   df = df.drop_duplicates('student_id')
+   best_student = df.groupby('student_id')['assessment_score'].mean().nlargest(1).index[0]
+   result = df[df['student_id'] == best_student][['student_id', 'student_name', 'assessment_score']]
+   result
+   # NOTE: NO fig, NO px, NO go - just return the data!
+3. "Who are the top 10 students?" → 
+   df = df.drop_duplicates('student_id')
+   top_10 = df.groupby('student_id')['assessment_score'].mean().nlargest(10)
+   result = df[df['student_id'].isin(top_10.index)][['student_id', 'student_name', 'assessment_score']].drop_duplicates('student_id')
+   result
+   # NOTE: NO fig, NO px, NO go - just return the data!
+4. "What is the average score?" → df['assessment_score'].mean()
 5. "Compare course scores" → df.groupby('course_name')['assessment_score'].mean()
-6. "Gender performance" → df.groupby('student_gender')['assessment_score'].mean()
-7. "Top 5 students" → df.groupby('student_id')['assessment_score'].mean().nlargest(5)
-8. "Attendance correlation" → df[['attendance_rate', 'assessment_score']].corr()
+6. "Top 5 students" → df.groupby('student_id')['assessment_score'].mean().nlargest(5)
+7. "Attendance correlation" → df[['attendance_rate', 'assessment_score']].corr()
+8. "List all students" → df.drop_duplicates('student_id')[['student_id', 'student_name']]
 
-{get_visualization_examples()}
+{viz_examples}
 
 USER QUESTION: "{question}"
 
@@ -245,14 +312,22 @@ CRITICAL RULES (MUST FOLLOW):
 INSTRUCTIONS:
 1. Generate ONLY Python code - no explanations, no markdown, no comments
 2. Use 'df' as the DataFrame variable name
-3. The last line should be the result (fig for charts, data for analysis)
-4. For visualizations: create stunning, colorful, professional charts
-5. Always add meaningful titles, labels, and hover information
-6. Use modern color schemes and clean layouts
+3. DECISION: Does the user explicitly use words like "visualize", "chart", "graph", "plot", "visualization"?
+   - YES (user said "visualize X" or "show me a chart of X") → Create Plotly figure (fig) with beautiful, colorful, professional charts
+   - NO (user said "who are", "what are", "list", "top 10", "best students", etc.) → Return data only (DataFrame, Series, or scalar) - NO fig, NO px, NO go, NO Plotly code at all!
+4. CRITICAL EXAMPLES:
+   - "Who are the top 10 students?" → NO visualization, just return DataFrame
+   - "Visualize the top 10 students" → YES, create chart
+   - "Show me top performers" → NO visualization, just return data
+   - "Show me a chart of top performers" → YES, create chart
+5. If creating visualization: add meaningful titles, labels, and hover information
+6. If creating visualization: use modern color schemes and clean layouts
 7. For counting students: use drop_duplicates('student_id') FIRST
 8. NEVER write import statements - all libraries are already imported
-9. ENSURE all strings are properly closed with matching quotes
+9. ENSURE all strings are properly closed with matching quotes (use 'text' or "text", not mixed quotes!)
 10. ENSURE all parentheses and brackets are balanced
+11. The last line should be: 'fig' (if visualization) OR 'result'/'data' (if data analysis)
+12. CRITICAL: If user does NOT say "visualize", "chart", "graph", or "plot" → NO VISUALIZATIONS, just data!
 
 CODE:"""
 
@@ -342,17 +417,40 @@ def extract_code_from_response(response: str) -> str:
     lines = response.strip().split('\n')
     code_lines = []
     
+    # Patterns that indicate instruction text, not code
+    instruction_patterns = [
+        r'^- ',  # Lines starting with "- " (bullet points)
+        r'DO NOT', r'MUST FOLLOW', r'CRITICAL', r'INSTRUCTIONS', r'RULES',
+        r'NOTE:', r'IMPORTANT:', r'WARNING:', r'EXAMPLE:',
+        r'use when', r'only use if', r'if user', r'when user',
+        r'–', r'—',  # En-dash and em-dash (common in instructions)
+    ]
+    
     for line in lines:
         stripped = line.strip()
-        # Skip empty lines, comments that look like prose, and non-code lines
+        # Skip empty lines
         if not stripped:
             continue
+        
+        # Skip lines that look like instructions
+        if any(re.search(pattern, stripped, re.IGNORECASE) for pattern in instruction_patterns):
+            continue
+        
+        # Skip comments that look like prose
         if stripped.startswith('#') and len(stripped) > 50:
             continue
-        if any(stripped.lower().startswith(x) for x in ['here', 'this', 'the ', 'to ', 'i ']):
+        
+        # Skip lines that start with prose-like words
+        if any(stripped.lower().startswith(x) for x in ['here', 'this', 'the ', 'to ', 'i ', 'you ', 'we ']):
             continue
+        
+        # Skip lines that are clearly not code (too many words, no code patterns)
+        words = stripped.split()
+        if len(words) > 10 and not any(x in stripped for x in ['df', 'pd.', 'np.', 'px.', 'go.', '=', '.', '(', '[', 'groupby', 'import']):
+            continue
+        
         # Likely code if it contains pandas operations or assignments
-        if any(x in stripped for x in ['df', 'pd.', 'np.', '=', '.', '(', '[', 'groupby']):
+        if any(x in stripped for x in ['df', 'pd.', 'np.', 'px.', 'go.', '=', '.', '(', '[', 'groupby', 'import']):
             code_lines.append(stripped)
     
     if code_lines:
@@ -383,6 +481,28 @@ def clean_code(code: str) -> str:
     
     # Remove print statements (we capture the result directly)
     code = re.sub(r'\bprint\s*\((.*)\)', r'\1', code)
+    
+    # Remove lines that look like instructions (bullet points, rules, etc.)
+    lines = code.split('\n')
+    cleaned_lines = []
+    instruction_patterns = [
+        r'^- ',  # Lines starting with "- "
+        r'DO NOT', r'MUST FOLLOW', r'CRITICAL', r'INSTRUCTIONS', r'RULES',
+        r'NOTE:', r'IMPORTANT:', r'WARNING:', r'EXAMPLE:',
+        r'use when', r'only use if', r'if user', r'when user',
+    ]
+    
+    for line in lines:
+        stripped = line.strip()
+        # Skip instruction-like lines
+        if any(re.search(pattern, stripped, re.IGNORECASE) for pattern in instruction_patterns):
+            continue
+        # Skip lines with Unicode dashes (en-dash, em-dash) that aren't in strings
+        if re.search(r'[–—]', stripped) and not (stripped.startswith("'") or stripped.startswith('"')):
+            continue
+        cleaned_lines.append(line)
+    
+    code = '\n'.join(cleaned_lines)
     
     # Remove leading/trailing whitespace
     code = code.strip()

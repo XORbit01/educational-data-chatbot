@@ -9,6 +9,7 @@ Developer: aliawada127001@outlook.com
 """
 
 import time
+import re
 from dataclasses import dataclass
 from typing import Optional
 
@@ -125,6 +126,20 @@ class CodeGenerator:
                 
                 # Extract code from response
                 code = extract_code_from_response(raw_response)
+                
+                # Final cleanup: remove any instruction-like lines that might have slipped through
+                if code:
+                    lines = code.split('\n')
+                    cleaned_lines = []
+                    for line in lines:
+                        stripped = line.strip()
+                        # Skip lines that look like instructions
+                        if (stripped.startswith('- ') or 
+                            any(phrase in stripped.upper() for phrase in ['DO NOT', 'MUST FOLLOW', 'CRITICAL', 'INSTRUCTIONS', 'RULES']) or
+                            (re.search(r'[–—]', stripped) and not (stripped.startswith("'") or stripped.startswith('"')))):
+                            continue
+                        cleaned_lines.append(line)
+                    code = '\n'.join(cleaned_lines).strip()
                 
                 # Log extracted code for debugging
                 llm_logger.debug(
@@ -297,21 +312,37 @@ class CodeGenerator:
         if "unterminated string literal" in error.lower():
             error_details = "UNTERMINATED STRING LITERAL - A string starts with a quote (single ' or double \") but doesn't have a matching closing quote."
             # Show example based on what we see in the broken code
-            if "color='" in broken_code:
+            if "title=" in broken_code or "title\"" in broken_code or "title'" in broken_code:
+                fix_example = """
+EXAMPLE OF THE FIX NEEDED:
+BROKEN: title="Best Student'
+BROKEN: title='Best Student"
+FIXED:  title="Best Student"
+OR:     title='Best Student'
+
+CRITICAL: Use matching quotes - if you start with ", end with ". If you start with ', end with '.
+DO NOT mix quotes like "text' or 'text"
+"""
+            elif "color='" in broken_code or "color=\"" in broken_code:
                 fix_example = """
 EXAMPLE OF THE FIX NEEDED:
 BROKEN: marker=dict(color='
+BROKEN: marker=dict(color="
 FIXED:  marker=dict(color='#FF6B6B')
+OR:     marker=dict(color="#FF6B6B")
 
-The string color=' is incomplete - you need to add a value and close the quote.
+The string is incomplete - you need to add a value and close the quote with the SAME quote type.
 """
             else:
                 fix_example = """
 EXAMPLE OF THE FIX NEEDED:
 BROKEN: some_variable = 'incomplete
+BROKEN: some_variable = "incomplete
 FIXED:  some_variable = 'complete'
+OR:     some_variable = "complete"
 
 Find any string that starts with ' or " but doesn't end with the same quote, and close it.
+CRITICAL: Use matching quotes - don't mix ' and " in the same string!
 """
         elif "invalid syntax" in error.lower():
             error_details = "INVALID SYNTAX - Check for missing commas, parentheses, brackets, or quotes."
@@ -320,6 +351,17 @@ Find any string that starts with ' or " but doesn't end with the same quote, and
         repeat_warning = ""
         if previous_errors and len(previous_errors) > 1:
             repeat_warning = "\n⚠️ WARNING: This error occurred before. Make sure you're actually fixing it, not repeating the same mistake!\n"
+        
+        # Check if user asked for visualization
+        asks_for_viz = any(kw in user_question.lower() for kw in ['chart', 'graph', 'plot', 'visualization', 'visualize', 'show me a', 'create a'])
+        viz_reminder = ""
+        if not asks_for_viz:
+            viz_reminder = """
+⚠️ IMPORTANT: The user did NOT ask for a visualization/chart. 
+- If the broken code contains 'fig', 'px', 'go', or Plotly code, REMOVE IT!
+- Return DATA only (DataFrame, Series, or scalar) - NO Plotly figures!
+- Questions like "who is...", "what is...", "how many..." → just return data, NOT charts!
+"""
         
         return f"""You are a pandas and Plotly expert. Fix the syntax error in the code below.
 
@@ -330,7 +372,7 @@ CRITICAL RULES (MUST FOLLOW):
 - The libraries px, go, pd, np are PRE-IMPORTED and ready to use
 
 ORIGINAL REQUEST: {user_question}
-
+{viz_reminder}
 BROKEN CODE (HAS SYNTAX ERROR - DO NOT REPEAT):
 ```python
 {broken_code}
@@ -343,12 +385,13 @@ SYNTAX ERROR: {error}
 CRITICAL FIX INSTRUCTIONS:
 1. The code above is BROKEN - it will NOT work
 2. Find the syntax error and fix it completely
-3. For unterminated strings: add a value and close the quote (e.g., color='#FF6B6B' not color=')
+3. For unterminated strings: add a value and close the quote with MATCHING quotes (e.g., title="Best Student" not title="Best Student')
 4. Generate ONLY the FIXED code - no explanations, no markdown blocks, no comments, NO IMPORTS
 5. The fixed code must be valid Python that can be executed
-6. Every string must have matching opening and closing quotes
+6. Every string must have matching opening and closing quotes (use 'text' or "text", NOT mixed!)
 7. NEVER write import statements - all libraries are already imported
 8. Use df, pd, np, px, go directly - they are already available
+9. Check EVERY string in the code - make sure all quotes match!
 
 Generate the FIXED code:"""
     
