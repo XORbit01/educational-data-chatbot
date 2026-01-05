@@ -138,7 +138,15 @@ sequenceDiagram
     Ollama->>DeepSeek: Run inference
     DeepSeek-->>Ollama: Generated code
     Ollama-->>CG: Code string
-    CG->>CV: Validate code
+    CG->>CG: Extract & validate syntax
+    alt Syntax Error Detected
+        CG->>CG: Build retry prompt with error feedback
+        CG->>Ollama: Retry with error feedback
+        Ollama->>DeepSeek: Run inference (fix syntax)
+        DeepSeek-->>Ollama: Fixed code
+        Ollama-->>CG: Fixed code string
+    end
+    CG->>CV: Validate code (security)
     CV->>CV: Parse AST
     CV->>CV: Check allowlist/denylist
     CV-->>CG: Validated code
@@ -168,6 +176,7 @@ sequenceDiagram
 - Interfaces with Ollama runtime
 - Sends prompts to DeepSeek Coder 6.7B
 - Extracts code from LLM responses
+- **Syntax error retry**: Automatically retries with error feedback if syntax errors detected
 - Handles retries and error recovery
 - Manages model connection
 
@@ -542,16 +551,22 @@ Ensure `Students_Dataset.xlsx` is in the `data/` directory.
    - Retry with simpler prompt
    - Return user-friendly error
 
-2. **Validation Fails**
+2. **Syntax Errors in Generated Code**
+   - **Automatic retry with feedback**: If syntax error detected, LLM retries with error message
+   - Shows broken code and error details to LLM for self-correction
+   - Up to 2 retry attempts
+   - Returns user-friendly error if retries fail
+
+3. **Validation Fails**
    - Show security violation message
    - Suggest rephrasing question
 
-3. **Execution Fails**
+4. **Execution Fails**
    - Capture error safely
    - Return helpful message
    - Log for debugging
 
-4. **Timeout**
+5. **Timeout**
    - Stop execution after 10 seconds
    - Suggest simpler query
 

@@ -12,6 +12,8 @@ from typing import Tuple, Optional
 import pandas as pd
 import plotly.graph_objects as go
 
+from logger import app_logger
+
 
 def extract_schema(df: pd.DataFrame) -> str:
     """
@@ -303,6 +305,12 @@ def extract_code_from_response(response: str) -> str:
     Returns:
         Extracted and cleaned code string
     """
+    app_logger.debug(
+        "Extracting code from LLM response",
+        response_length=len(response),
+        response_preview=response[:300]
+    )
+    
     # Try to extract from markdown code block
     patterns = [
         r'```python\s*\n(.*?)```',  # ```python ... ```
@@ -315,9 +323,19 @@ def extract_code_from_response(response: str) -> str:
         if match:
             code = match.group(1).strip()
             if code:
+                app_logger.debug(
+                    "Found code in markdown block",
+                    pattern=pattern[:30],
+                    code_preview=code[:300],
+                    code_length=len(code)
+                )
                 cleaned = clean_code(code)
-                # Try to validate syntax and fix if needed
-                cleaned = _fix_syntax_if_needed(cleaned)
+                app_logger.debug(
+                    "Code after cleaning",
+                    cleaned_preview=cleaned[:300],
+                    cleaned_length=len(cleaned)
+                )
+                # Don't auto-fix syntax errors - let the generator retry with feedback
                 return cleaned
     
     # If no code block, try to extract code-like lines
@@ -339,55 +357,11 @@ def extract_code_from_response(response: str) -> str:
     
     if code_lines:
         cleaned = clean_code('\n'.join(code_lines))
-        cleaned = _fix_syntax_if_needed(cleaned)
         return cleaned
     
     # Last resort: return cleaned response
     cleaned = clean_code(response)
-    cleaned = _fix_syntax_if_needed(cleaned)
     return cleaned
-
-
-def _fix_syntax_if_needed(code: str) -> str:
-    """
-    Try to fix common syntax errors in code.
-    
-    Args:
-        code: Code string that may have syntax errors
-        
-    Returns:
-        Fixed code string
-    """
-    # Try to parse - if it works, return as-is
-    try:
-        ast.parse(code)
-        return code
-    except SyntaxError as e:
-        # Try to fix unterminated strings
-        if 'unterminated string literal' in str(e).lower():
-            # Simple fix: add closing quote if missing
-            lines = code.split('\n')
-            if lines:
-                last_line = lines[-1].rstrip()
-                # Count quotes (simple heuristic)
-                single_count = last_line.count("'") - last_line.count("\\'")
-                double_count = last_line.count('"') - last_line.count('\\"')
-                
-                if single_count % 2 != 0 and not last_line.endswith("'"):
-                    lines[-1] = lines[-1] + "'"
-                elif double_count % 2 != 0 and not last_line.endswith('"'):
-                    lines[-1] = lines[-1] + '"'
-                
-                fixed = '\n'.join(lines)
-                # Try parsing again
-                try:
-                    ast.parse(fixed)
-                    return fixed
-                except SyntaxError:
-                    pass  # Fix didn't work, return original
-    
-    # If we can't fix it, return original
-    return code
 
 
 def clean_code(code: str) -> str:
