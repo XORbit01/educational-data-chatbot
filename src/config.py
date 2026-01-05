@@ -96,6 +96,21 @@ class SecurityConfig:
         # Common dict/formatting for Plotly
         'dict', 'list', 'tuple', 'range', 'enumerate', 'zip', 'sorted',
         'format', 'f', 'tolist', 'items', 'keys',
+        # Plotly chart parameters
+        'path', 'names', 'parents', 'ids', 'hole', 'pull', 'textinfo',
+        'textposition', 'textfont', 'insidetextfont', 'outsidetextfont',
+        'hovertemplate', 'hoverinfo', 'hoverlabel', 'customdata',
+        'marker_color', 'marker_line', 'marker_size', 'opacity',
+        'orientation', 'barmode', 'barnorm', 'bargap', 'bargroupgap',
+        'nbinsx', 'nbinsy', 'histfunc', 'histnorm', 'cumulative',
+        'trendline', 'trendline_color_override', 'trendline_scope',
+        'color_discrete_sequence', 'color_discrete_map', 'color_continuous_scale',
+        'color_continuous_midpoint', 'symbol', 'symbol_sequence', 'symbol_map',
+        'facet_row', 'facet_col', 'facet_col_wrap', 'animation_frame',
+        'category_orders', 'labels', 'title', 'template', 'width', 'height',
+        'marginal', 'marginal_x', 'marginal_y', 'log_x', 'log_y', 'range_x', 'range_y',
+        'render_mode', 'hover_name', 'hover_data', 'text', 'error_x', 'error_y',
+        'base', 'pattern_shape', 'pattern_shape_sequence', 'pattern_shape_map',
     }))
     
     # Blocked operations (denylist) - security critical
@@ -148,6 +163,14 @@ class SecurityConfig:
         'corr', 'numeric_cols', 'courses', 'levels', 'genders', 'row', 'col',
         'i', 'j', 'x', 'y', 'z', 'r', 'theta', 'label', 'labels', 'value',
         'avg_score', 'top_students', 'level', 'course', 'gender', 'score',
+        # Additional variables for visualization
+        'path', 'parent', 'parents', 'ids', 'names', 'values', 'text',
+        'hover_data', 'color', 'size', 'symbol', 'opacity', 'line',
+        'marker', 'counts', 'totals', 'means', 'averages', 'sums',
+        'students_data', 'distribution', 'metrics', 'categories',
+        'series', 'column', 'columns', 'rows', 'idx', 'index',
+        'title', 'name', 'mode', 'fill', 'showlegend', 'legendgroup',
+        'make_subplots', 'subplot', 'axis', 'polar', 'radialaxis',
     }))
 
 
