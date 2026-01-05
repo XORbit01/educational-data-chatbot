@@ -9,6 +9,7 @@ Developer: aliawada127001@outlook.com
 import re
 from typing import Tuple, Optional
 import pandas as pd
+import plotly.graph_objects as go
 
 
 def extract_schema(df: pd.DataFrame) -> str:
@@ -75,6 +76,114 @@ Column Descriptions:
 """.strip()
 
 
+def get_visualization_examples() -> str:
+    """
+    Get Plotly visualization examples for the LLM.
+    
+    Returns:
+        Formatted visualization examples
+    """
+    return """
+VISUALIZATION EXAMPLES (use when user asks for charts, graphs, plots, or visual analysis):
+
+1. "Show gender distribution pie chart":
+data = df.drop_duplicates('student_id')['student_gender'].value_counts()
+fig = go.Figure(data=[go.Pie(
+    labels=data.index, values=data.values,
+    hole=0.4, marker=dict(colors=['#FF6B6B', '#4ECDC4']),
+    textinfo='percent+label', textfont_size=14,
+    hovertemplate='<b>%{label}</b><br>Count: %{value}<br>Percent: %{percent}<extra></extra>'
+)])
+fig.update_layout(title='Gender Distribution', font=dict(family='Inter'), showlegend=True)
+fig
+
+2. "Compare course scores with beautiful bar chart":
+data = df.groupby('course_name')['assessment_score'].mean().sort_values(ascending=True)
+fig = go.Figure(data=[go.Bar(
+    x=data.values, y=data.index, orientation='h',
+    marker=dict(color=data.values, colorscale='Viridis', showscale=True),
+    text=[f'{v:.1f}' for v in data.values], textposition='outside'
+)])
+fig.update_layout(title='Average Scores by Course', xaxis_title='Score', height=400)
+fig
+
+3. "Show correlation heatmap":
+numeric_cols = ['assessment_score', 'attendance_rate', 'raised_hand_count', 'moodle_views', 'resources_downloads']
+corr = df[numeric_cols].corr()
+fig = go.Figure(data=go.Heatmap(
+    z=corr.values, x=corr.columns, y=corr.columns,
+    colorscale='RdBu_r', zmid=0, text=corr.values.round(2), texttemplate='%{text}',
+    hovertemplate='%{x} vs %{y}<br>Correlation: %{z:.2f}<extra></extra>'
+))
+fig.update_layout(title='Correlation Matrix', height=500)
+fig
+
+4. "Show score distribution histogram":
+fig = go.Figure(data=[go.Histogram(
+    x=df['assessment_score'], nbinsx=20,
+    marker=dict(color='#667eea', line=dict(color='white', width=1)),
+    hovertemplate='Score: %{x}<br>Count: %{y}<extra></extra>'
+)])
+fig.update_layout(title='Score Distribution', xaxis_title='Score', yaxis_title='Frequency', bargap=0.1)
+fig
+
+5. "Show class performance with box plot":
+fig = go.Figure()
+colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7']
+for i, level in enumerate(sorted(df['class_level'].unique())):
+    fig.add_trace(go.Box(y=df[df['class_level']==level]['assessment_score'], name=level, marker_color=colors[i % len(colors)]))
+fig.update_layout(title='Score Distribution by Class Level', yaxis_title='Score', showlegend=False)
+fig
+
+6. "Show attendance vs score scatter plot":
+fig = px.scatter(df, x='attendance_rate', y='assessment_score', color='course_name',
+    trendline='ols', opacity=0.6, color_discrete_sequence=px.colors.qualitative.Set2,
+    hover_data=['student_name', 'class_level'])
+fig.update_layout(title='Attendance vs Score Correlation', xaxis_title='Attendance Rate (%)', yaxis_title='Assessment Score')
+fig
+
+7. "Show multi-metric radar chart for courses":
+courses = df.groupby('course_name').agg({
+    'assessment_score': 'mean', 'attendance_rate': 'mean',
+    'raised_hand_count': 'mean', 'moodle_views': 'mean'
+}).reset_index()
+fig = go.Figure()
+for _, row in courses.iterrows():
+    fig.add_trace(go.Scatterpolar(
+        r=[row['assessment_score']/100, row['attendance_rate']/100, row['raised_hand_count']/50, row['moodle_views']/100],
+        theta=['Score', 'Attendance', 'Participation', 'Moodle Views'],
+        fill='toself', name=row['course_name']
+    ))
+fig.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 1])), title='Course Performance Radar')
+fig
+
+8. "Show sunburst chart of students by class and gender":
+data = df.drop_duplicates('student_id').groupby(['class_level', 'student_gender']).size().reset_index(name='count')
+fig = px.sunburst(data, path=['class_level', 'student_gender'], values='count',
+    color='count', color_continuous_scale='Blues', title='Student Distribution Sunburst')
+fig
+
+9. "Show animated bar chart race of top students":
+top_students = df.groupby(['student_id', 'course_name'])['assessment_score'].mean().reset_index()
+fig = px.bar(top_students.nlargest(10, 'assessment_score'), x='assessment_score', y='student_id',
+    color='course_name', orientation='h', color_discrete_sequence=px.colors.qualitative.Pastel,
+    title='Top 10 Student Scores')
+fig.update_layout(yaxis={'categoryorder':'total ascending'})
+fig
+
+10. "Show gauge chart for average score":
+avg_score = df['assessment_score'].mean()
+fig = go.Figure(go.Indicator(
+    mode='gauge+number+delta', value=avg_score, delta={'reference': 70},
+    gauge={'axis': {'range': [0, 100]}, 'bar': {'color': '#667eea'},
+           'steps': [{'range': [0, 50], 'color': '#FF6B6B'}, {'range': [50, 70], 'color': '#FFEAA7'}, {'range': [70, 100], 'color': '#4ECDC4'}],
+           'threshold': {'line': {'color': 'red', 'width': 4}, 'thickness': 0.75, 'value': 70}}
+))
+fig.update_layout(title='Average Assessment Score')
+fig
+""".strip()
+
+
 def build_code_generation_prompt(question: str, schema: str) -> str:
     """
     Build the prompt for LLM code generation.
@@ -86,14 +195,28 @@ def build_code_generation_prompt(question: str, schema: str) -> str:
     Returns:
         Complete prompt for code generation
     """
-    return f"""You are a pandas expert. Generate ONLY executable Python pandas code to answer the user's question.
+    return f"""You are a pandas and Plotly expert. Generate Python code to answer the user's question.
+If the user asks for visualization/chart/graph/plot, create a beautiful Plotly figure.
+Otherwise, generate pandas code for data analysis.
 
 DATAFRAME SCHEMA:
 {schema}
 
 {get_column_descriptions()}
 
-EXAMPLE QUERIES:
+AVAILABLE LIBRARIES:
+- df: The pandas DataFrame with student data
+- pd: pandas library
+- np: numpy library  
+- px: plotly.express (for quick beautiful charts)
+- go: plotly.graph_objects (for advanced customization)
+
+COLOR PALETTES TO USE:
+- Vibrant: ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F']
+- Gradient: 'Viridis', 'Plasma', 'Inferno', 'Magma', 'Cividis', 'Blues', 'RdBu_r'
+- Qualitative: px.colors.qualitative.Set2, px.colors.qualitative.Pastel
+
+DATA ANALYSIS EXAMPLES:
 1. "How many males/females" → df.drop_duplicates('student_id')['student_gender'].value_counts()
 2. "Count students by gender" → df.drop_duplicates('student_id')['student_gender'].value_counts()
 3. "Students per class level" → df.drop_duplicates('student_id')['class_level'].value_counts()
@@ -103,14 +226,18 @@ EXAMPLE QUERIES:
 7. "Top 5 students" → df.groupby('student_id')['assessment_score'].mean().nlargest(5)
 8. "Attendance correlation" → df[['attendance_rate', 'assessment_score']].corr()
 
+{get_visualization_examples()}
+
 USER QUESTION: "{question}"
 
 INSTRUCTIONS:
-1. Generate ONLY Python pandas code - no explanations, no markdown
+1. Generate ONLY Python code - no explanations, no markdown, no comments
 2. Use 'df' as the DataFrame variable name
-3. The last line should be the result expression (no print statements)
-4. Use only safe pandas/numpy operations
-5. Code must be a single expression or a few lines ending with the result
+3. The last line should be the result (fig for charts, data for analysis)
+4. For visualizations: create stunning, colorful, professional charts
+5. Always add meaningful titles, labels, and hover information
+6. Use modern color schemes and clean layouts
+7. For counting students: use drop_duplicates('student_id') FIRST
 
 CODE:"""
 
@@ -252,12 +379,20 @@ def format_result_for_display(result) -> Tuple[str, str]:
     Format execution result for display.
     
     Args:
-        result: The execution result (DataFrame, Series, scalar, etc.)
+        result: The execution result (DataFrame, Series, scalar, Plotly figure, etc.)
         
     Returns:
         Tuple of (formatted_text, result_type)
     """
-    if isinstance(result, pd.DataFrame):
+    # Check for Plotly figure first
+    if isinstance(result, go.Figure):
+        # For Plotly figures, return a description
+        title = result.layout.title.text if result.layout.title and result.layout.title.text else "Visualization"
+        num_traces = len(result.data) if result.data else 0
+        text = f"📊 {title} ({num_traces} data series)"
+        return text, "plotly_figure"
+    
+    elif isinstance(result, pd.DataFrame):
         if len(result) > 20:
             display_df = pd.concat([result.head(10), result.tail(10)])
             text = f"Showing first 10 and last 10 of {len(result)} rows:\n{display_df.to_string()}"
