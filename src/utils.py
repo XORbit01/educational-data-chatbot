@@ -230,6 +230,12 @@ DATA ANALYSIS EXAMPLES:
 
 USER QUESTION: "{question}"
 
+CRITICAL RULES (MUST FOLLOW):
+- DO NOT use import statements (px, go, pd, np, df are already available)
+- DO NOT use lambda functions
+- DO NOT use exec, eval, open, or any file operations
+- The libraries px, go, pd, np are PRE-IMPORTED and ready to use
+
 INSTRUCTIONS:
 1. Generate ONLY Python code - no explanations, no markdown, no comments
 2. Use 'df' as the DataFrame variable name
@@ -238,6 +244,7 @@ INSTRUCTIONS:
 5. Always add meaningful titles, labels, and hover information
 6. Use modern color schemes and clean layouts
 7. For counting students: use drop_duplicates('student_id') FIRST
+8. NEVER write import statements - all libraries are already imported
 
 CODE:"""
 
