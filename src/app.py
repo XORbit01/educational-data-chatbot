@@ -10,6 +10,7 @@ Developer: aliawada127001@outlook.com
 
 import streamlit as st
 import pandas as pd
+import plotly.graph_objects as go
 from datetime import datetime
 from typing import Optional
 
@@ -418,10 +419,12 @@ def render_sidebar():
         examples = [
             "Compare average scores across all courses",
             "How do male vs female students perform?",
-            "Which class level has the highest scores?",
+            "Show me a pie chart of gender distribution",
+            "Create a beautiful bar chart of course scores",
+            "Show correlation heatmap of all numeric columns",
+            "Create a sunburst chart of students by class and gender",
+            "Show score distribution with a histogram",
             "Is there a correlation between attendance and scores?",
-            "Show me the top 10 performing students",
-            "What's the average score in Computer Science?",
         ]
         
         for example in examples:
@@ -437,7 +440,7 @@ def render_sidebar():
             st.rerun()
 
 
-def render_message(role: str, content: str, data=None, code: str = None, viz=None):
+def render_message(role: str, content: str, data=None, code: str = None, viz=None, data_type: str = None):
     """Render a chat message."""
     if role == "user":
         st.markdown(f"""
@@ -452,19 +455,22 @@ def render_message(role: str, content: str, data=None, code: str = None, viz=Non
         </div>
         """, unsafe_allow_html=True)
         
-        # Show visualization if available
-        if viz and viz.figure:
+        # Check if data itself is a Plotly figure (AI-generated visualization)
+        if isinstance(data, go.Figure):
+            st.plotly_chart(data, use_container_width=True)
+        # Show visualization from response_formatter if available
+        elif viz and viz.figure:
             st.plotly_chart(viz.figure, use_container_width=True)
         
-        # Show data table if available
-        if data is not None:
+        # Show data table if available (but not for Plotly figures)
+        if data is not None and not isinstance(data, go.Figure):
             if isinstance(data, (pd.DataFrame, pd.Series)):
-                with st.expander("View Data Table"):
+                with st.expander("📊 View Data Table"):
                     st.dataframe(data, use_container_width=True)
         
         # Show code if available
         if code:
-            with st.expander("View Generated Code"):
+            with st.expander("💻 View Generated Code"):
                 st.code(code, language="python")
 
 
@@ -480,7 +486,8 @@ def render_chat():
                 content=msg['content'],
                 data=msg.get('data'),
                 code=msg.get('code'),
-                viz=msg.get('viz')
+                viz=msg.get('viz'),
+                data_type=msg.get('data_type')
             )
     
     # Check for pending query from sidebar
@@ -527,9 +534,15 @@ def process_query(query: str):
             result = st.session_state.processor.process_question(query)
             
             if result.success:
-                # Generate visualization
                 viz = None
-                if result.has_data:
+                
+                # Check if the AI generated a Plotly figure directly
+                if result.has_visualization:
+                    # AI generated the visualization - use it directly
+                    # No need for additional viz generation
+                    pass
+                elif result.has_data and not isinstance(result.data, go.Figure):
+                    # Generate visualization for data results
                     viz = generate_visualization(result.data, query)
                 
                 # Add assistant message
@@ -537,6 +550,7 @@ def process_query(query: str):
                     'role': 'assistant',
                     'content': result.answer,
                     'data': result.data if result.has_data else None,
+                    'data_type': result.data_type,
                     'code': result.code,
                     'viz': viz,
                     'timestamp': datetime.now().isoformat(),
