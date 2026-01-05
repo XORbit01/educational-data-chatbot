@@ -69,6 +69,33 @@ class SecurityConfig:
         # Shape
         'shape', 'columns', 'index', 'values', 'dtypes', 'info',
         'len', 'copy', 'rename', 'assign',
+        # Plotly Express (px) chart types
+        'bar', 'scatter', 'line', 'pie', 'histogram', 'box', 'violin',
+        'heatmap', 'treemap', 'sunburst', 'funnel', 'waterfall', 'icicle',
+        'scatter_3d', 'line_3d', 'scatter_matrix', 'parallel_coordinates',
+        'density_heatmap', 'density_contour', 'area', 'ecdf', 'strip',
+        'scatter_polar', 'line_polar', 'bar_polar', 'choropleth', 'imshow',
+        # Plotly Graph Objects (go) traces
+        'Figure', 'Bar', 'Scatter', 'Pie', 'Histogram', 'Box', 'Violin',
+        'Heatmap', 'Contour', 'Surface', 'Mesh3d', 'Indicator', 'Gauge',
+        'Scatterpolar', 'Barpolar', 'Scatterternary', 'Sankey', 'Treemap',
+        'Sunburst', 'Funnel', 'Waterfall', 'Candlestick', 'Ohlc', 'Table',
+        'Scattergeo', 'Choropleth', 'Scattermapbox', 'Densitymapbox',
+        'Scatter3d', 'Line3d', 'Isosurface', 'Volume', 'Cone', 'Streamtube',
+        # Plotly layout and styling
+        'update_layout', 'update_traces', 'update_xaxes', 'update_yaxes',
+        'add_trace', 'add_annotation', 'add_shape', 'add_vline', 'add_hline',
+        'add_vrect', 'add_hrect', 'set_subplots', 'make_subplots',
+        # Plotly figure properties
+        'data', 'layout', 'frames', 'to_dict', 'to_json',
+        # Plotly color utilities
+        'colors', 'qualitative', 'sequential', 'diverging', 'cyclical',
+        'Set1', 'Set2', 'Set3', 'Pastel', 'Pastel1', 'Pastel2', 'Dark2',
+        'Viridis', 'Plasma', 'Inferno', 'Magma', 'Cividis', 'Blues', 'Reds',
+        'RdBu', 'RdBu_r', 'Spectral', 'Rainbow', 'Jet', 'Hot', 'Cool',
+        # Common dict/formatting for Plotly
+        'dict', 'list', 'tuple', 'range', 'enumerate', 'zip', 'sorted',
+        'format', 'f', 'tolist', 'items', 'keys',
     }))
     
     # Blocked operations (denylist) - security critical
@@ -115,6 +142,12 @@ class SecurityConfig:
     allowed_variables: FrozenSet[str] = field(default_factory=lambda: frozenset({
         'df', 'pd', 'np', 'result', 'filtered', 'grouped', 'merged',
         'temp', 'data', 'subset', 'output', 'stats', 'summary',
+        # Plotly variables
+        'px', 'go', 'fig', 'figure', 'chart', 'plot', 'trace', 'traces',
+        'colors', 'layout', 'annotation', 'annotations', 'shape', 'shapes',
+        'corr', 'numeric_cols', 'courses', 'levels', 'genders', 'row', 'col',
+        'i', 'j', 'x', 'y', 'z', 'r', 'theta', 'label', 'labels', 'value',
+        'avg_score', 'top_students', 'level', 'course', 'gender', 'score',
     }))
 
 
