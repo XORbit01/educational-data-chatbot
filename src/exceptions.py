@@ -111,11 +111,18 @@ class SecurityViolationError(ChatbotError):
     ):
         self.violation_type = violation_type
         self.blocked_item = blocked_item
+        # More informative error message for debugging
+        if "lambda" in blocked_item.lower():
+            user_msg = "Lambda functions are not supported. Please try a different query."
+        elif "import" in violation_type.lower():
+            user_msg = "Import statements are not allowed. Please rephrase your question."
+        else:
+            user_msg = f"Security block: {blocked_item}. Please try rephrasing your question."
         super().__init__(
             message=message,
             code=code,
             details=f"{violation_type}: {blocked_item}",
-            user_message="Your request was blocked for security reasons."
+            user_message=user_msg
         )
 
 
