@@ -46,6 +46,16 @@ class QueryResult:
     def has_data(self) -> bool:
         """Check if result contains displayable data."""
         return self.data is not None and self.data_type != "none"
+    
+    @property
+    def has_visualization(self) -> bool:
+        """Check if result contains a Plotly visualization."""
+        return self.data_type == "plotly_figure"
+    
+    @property
+    def is_plotly_figure(self) -> bool:
+        """Check if result is a Plotly figure (alias for has_visualization)."""
+        return self.data_type == "plotly_figure"
 
 
 class DataManager:
