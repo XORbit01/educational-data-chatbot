@@ -7,6 +7,7 @@ Developer: aliawada127001@outlook.com
 """
 
 import re
+import ast
 from typing import Tuple, Optional
 import pandas as pd
 import plotly.graph_objects as go
@@ -235,6 +236,9 @@ CRITICAL RULES (MUST FOLLOW):
 - DO NOT use lambda functions
 - DO NOT use exec, eval, open, or any file operations
 - The libraries px, go, pd, np are PRE-IMPORTED and ready to use
+- Generate COMPLETE, VALID Python code - all strings must be properly closed
+- All parentheses, brackets, and quotes must be balanced
+- Code must be syntactically correct and executable
 
 INSTRUCTIONS:
 1. Generate ONLY Python code - no explanations, no markdown, no comments
@@ -245,6 +249,8 @@ INSTRUCTIONS:
 6. Use modern color schemes and clean layouts
 7. For counting students: use drop_duplicates('student_id') FIRST
 8. NEVER write import statements - all libraries are already imported
+9. ENSURE all strings are properly closed with matching quotes
+10. ENSURE all parentheses and brackets are balanced
 
 CODE:"""
 
@@ -309,7 +315,10 @@ def extract_code_from_response(response: str) -> str:
         if match:
             code = match.group(1).strip()
             if code:
-                return clean_code(code)
+                cleaned = clean_code(code)
+                # Try to validate syntax and fix if needed
+                cleaned = _fix_syntax_if_needed(cleaned)
+                return cleaned
     
     # If no code block, try to extract code-like lines
     lines = response.strip().split('\n')
@@ -329,10 +338,56 @@ def extract_code_from_response(response: str) -> str:
             code_lines.append(stripped)
     
     if code_lines:
-        return clean_code('\n'.join(code_lines))
+        cleaned = clean_code('\n'.join(code_lines))
+        cleaned = _fix_syntax_if_needed(cleaned)
+        return cleaned
     
     # Last resort: return cleaned response
-    return clean_code(response)
+    cleaned = clean_code(response)
+    cleaned = _fix_syntax_if_needed(cleaned)
+    return cleaned
+
+
+def _fix_syntax_if_needed(code: str) -> str:
+    """
+    Try to fix common syntax errors in code.
+    
+    Args:
+        code: Code string that may have syntax errors
+        
+    Returns:
+        Fixed code string
+    """
+    # Try to parse - if it works, return as-is
+    try:
+        ast.parse(code)
+        return code
+    except SyntaxError as e:
+        # Try to fix unterminated strings
+        if 'unterminated string literal' in str(e).lower():
+            # Simple fix: add closing quote if missing
+            lines = code.split('\n')
+            if lines:
+                last_line = lines[-1].rstrip()
+                # Count quotes (simple heuristic)
+                single_count = last_line.count("'") - last_line.count("\\'")
+                double_count = last_line.count('"') - last_line.count('\\"')
+                
+                if single_count % 2 != 0 and not last_line.endswith("'"):
+                    lines[-1] = lines[-1] + "'"
+                elif double_count % 2 != 0 and not last_line.endswith('"'):
+                    lines[-1] = lines[-1] + '"'
+                
+                fixed = '\n'.join(lines)
+                # Try parsing again
+                try:
+                    ast.parse(fixed)
+                    return fixed
+                except SyntaxError:
+                    pass  # Fix didn't work, return original
+    
+    # If we can't fix it, return original
+    return code
 
 
 def clean_code(code: str) -> str:
@@ -358,8 +413,41 @@ def clean_code(code: str) -> str:
     # Remove leading/trailing whitespace
     code = code.strip()
     
-    # Remove any trailing comments that look like explanations
+    # Fix common syntax issues
+    # 1. Try to fix unterminated strings by checking quote balance
     lines = code.split('\n')
+    
+    # Simple check: count quotes in the entire code
+    # This is a heuristic - if there's an odd number of quotes, try to close them
+    all_code = '\n'.join(lines)
+    
+    # Count unescaped quotes
+    single_quotes = 0
+    double_quotes = 0
+    i = 0
+    while i < len(all_code):
+        if all_code[i] == '\\' and i + 1 < len(all_code):
+            i += 2  # Skip escaped character
+            continue
+        if all_code[i] == "'":
+            single_quotes += 1
+        elif all_code[i] == '"':
+            double_quotes += 1
+        i += 1
+    
+    # If there's an unmatched quote, try to close it at the end
+    if single_quotes % 2 != 0 and lines:
+        # Check if last line already ends with a quote
+        last_line = lines[-1].rstrip()
+        if not last_line.endswith("'") and not last_line.endswith('\\'):
+            lines[-1] = lines[-1] + "'"
+    elif double_quotes % 2 != 0 and lines:
+        # Check if last line already ends with a quote
+        last_line = lines[-1].rstrip()
+        if not last_line.endswith('"') and not last_line.endswith('\\'):
+            lines[-1] = lines[-1] + '"'
+    
+    # Remove any trailing comments that look like explanations
     cleaned_lines = []
     for line in lines:
         # Keep the line but remove trailing explanation comments
